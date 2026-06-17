@@ -1,0 +1,14 @@
+{
+  "name": "aurafy-music-app",
+  "version": "1.0.0",
+  "description": "A polished music player with AI integrations and local playback.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "author": "",
+  "license": "ISC"
+}

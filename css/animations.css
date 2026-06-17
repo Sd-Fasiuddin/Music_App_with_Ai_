@@ -1,0 +1,447 @@
+/* ============================================================
+   PULSE MUSIC — animations.css
+   Keyframes · Transitions · Page Transitions · Micro-interactions
+   ============================================================ */
+
+/* ── @keyframes: spin ─────────────────────────────────────── */
+/* Used for vinyl/album art rotation during playback */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── @keyframes: pulse-glow ───────────────────────────────── */
+/* Subtle glow pulse for active progress bar dot */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255, 42, 133, .3);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(255, 42, 133, .6),
+                0 0 32px rgba(255, 42, 133, .2);
+    opacity: .85;
+  }
+}
+
+/* ── @keyframes: equalizer-bar ────────────────────────────── */
+/* Height oscillation for equalizer visualization bars */
+@keyframes equalizer-bar {
+  0%, 100% {
+    height: 3px;
+  }
+  25% {
+    height: 12px;
+  }
+  50% {
+    height: 6px;
+  }
+  75% {
+    height: 16px;
+  }
+}
+
+/* ── @keyframes: skeleton-shimmer ─────────────────────────── */
+/* Background slide for loading skeleton placeholders */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ── @keyframes: slide-up ─────────────────────────────────── */
+/* Toast notification entrance */
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Slide up without centering (for generic use) */
+@keyframes slide-up-raw {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── @keyframes: slide-down ───────────────────────────────── */
+@keyframes slide-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── @keyframes: fade-in ──────────────────────────────────── */
+/* Smooth fade for page transitions and overlays */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── @keyframes: fade-out ─────────────────────────────────── */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── @keyframes: scale-in ─────────────────────────────────── */
+/* Context menu / modal entrance */
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── @keyframes: scale-out ────────────────────────────────── */
+@keyframes scale-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* ── @keyframes: bounce ───────────────────────────────────── */
+/* Subtle bounce for button presses, like interactions */
+@keyframes bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.25);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+}
+
+/* ── @keyframes: drop-zone-pulse ──────────────────────────── */
+/* Pulsing dashed border for drag-and-drop overlay */
+@keyframes drop-zone-pulse {
+  0%, 100% {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0 rgba(255, 42, 133, 0);
+  }
+  50% {
+    border-color: var(--color-primary-light);
+    box-shadow: 0 0 0 12px rgba(255, 42, 133, .08),
+                0 0 40px rgba(255, 42, 133, .1);
+  }
+}
+
+/* ── @keyframes: float ────────────────────────────────────── */
+/* Gentle floating motion for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* ── @keyframes: ripple ───────────────────────────────────── */
+/* Material-style ripple for button presses */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: .4;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ── @keyframes: shake ────────────────────────────────────── */
+/* Error / attention shake */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+/* ── @keyframes: gradient-shift ───────────────────────────── */
+/* Animated gradient background */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ── @keyframes: glow-ring ────────────────────────────────── */
+/* Expanding glow ring (now-playing indicator, etc.) */
+@keyframes glow-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 42, 133, .4);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(255, 42, 133, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 42, 133, 0);
+  }
+}
+
+/* ── @keyframes: text-gradient ────────────────────────────── */
+/* Animated text gradient shift */
+@keyframes text-gradient {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* ============================================================
+   Equalizer Component
+   ============================================================ */
+.equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+}
+
+.equalizer-bar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--color-primary);
+  animation: equalizer-bar .8s ease-in-out infinite;
+}
+
+.equalizer-bar:nth-child(1) {
+  animation-duration: 0.7s;
+  animation-delay: 0s;
+  height: 8px;
+}
+
+.equalizer-bar:nth-child(2) {
+  animation-duration: 0.55s;
+  animation-delay: 0.15s;
+  height: 12px;
+}
+
+.equalizer-bar:nth-child(3) {
+  animation-duration: 0.65s;
+  animation-delay: 0.3s;
+  height: 6px;
+}
+
+.equalizer-bar:nth-child(4) {
+  animation-duration: 0.8s;
+  animation-delay: 0.1s;
+  height: 10px;
+}
+
+/* Paused state: freeze bars */
+.equalizer.paused .equalizer-bar {
+  animation-play-state: paused;
+}
+
+/* ============================================================
+   Transition Utility Classes
+   ============================================================ */
+.transition-none {
+  transition: none !important;
+}
+
+.transition-fast {
+  transition-property: all;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out);
+}
+
+.transition-normal {
+  transition-property: all;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-out);
+}
+
+.transition-slow {
+  transition-property: all;
+  transition-duration: var(--duration-slow);
+  transition-timing-function: var(--ease-out);
+}
+
+.transition-snap {
+  transition-property: all;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-snap);
+}
+
+/* ============================================================
+   Page Transition Classes
+   ============================================================ */
+
+/* Enter: element is entering the view */
+.page-enter {
+  animation: fade-in var(--duration-slow) var(--ease-out) forwards;
+}
+
+.page-enter-up {
+  animation: slide-up-raw var(--duration-slow) var(--ease-out) forwards;
+}
+
+.page-enter-down {
+  animation: slide-down var(--duration-slow) var(--ease-out) forwards;
+}
+
+.page-enter-scale {
+  animation: scale-in var(--duration-slow) var(--ease-snap) forwards;
+}
+
+/* Exit: element is leaving the view */
+.page-exit {
+  animation: fade-out var(--duration-normal) var(--ease-in) forwards;
+}
+
+.page-exit-scale {
+  animation: scale-out var(--duration-normal) var(--ease-in) forwards;
+}
+
+/* ============================================================
+   Staggered Animation Children
+   ============================================================ */
+/* Apply .stagger-children to a parent, children animate in sequentially */
+.stagger-children > * {
+  opacity: 0;
+  animation: slide-up-raw var(--duration-slow) var(--ease-out) forwards;
+}
+
+.stagger-children > *:nth-child(1)  { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2)  { animation-delay: 40ms; }
+.stagger-children > *:nth-child(3)  { animation-delay: 80ms; }
+.stagger-children > *:nth-child(4)  { animation-delay: 120ms; }
+.stagger-children > *:nth-child(5)  { animation-delay: 160ms; }
+.stagger-children > *:nth-child(6)  { animation-delay: 200ms; }
+.stagger-children > *:nth-child(7)  { animation-delay: 240ms; }
+.stagger-children > *:nth-child(8)  { animation-delay: 280ms; }
+.stagger-children > *:nth-child(9)  { animation-delay: 320ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(n+11) { animation-delay: 400ms; }
+
+/* ============================================================
+   Micro-interaction Helpers
+   ============================================================ */
+
+/* Like button bounce */
+.animate-bounce {
+  animation: bounce var(--duration-slow) var(--ease-snap);
+}
+
+/* Error shake */
+.animate-shake {
+  animation: shake 0.5s var(--ease-out);
+}
+
+/* Subtle float */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Glow ring pulse (e.g., now-playing dot) */
+.animate-glow-ring {
+  animation: glow-ring 2s ease-out infinite;
+}
+
+/* Animated gradient text */
+.animate-gradient-text {
+  background: linear-gradient(
+    270deg,
+    var(--color-primary),
+    var(--color-secondary),
+    var(--color-pink),
+    var(--color-primary)
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: text-gradient 6s ease infinite;
+}
+
+/* ============================================================
+   Hover Lift Effect
+   ============================================================ */
+.hover-lift {
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================================
+   Reduced Motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .equalizer-bar {
+    animation: none !important;
+    height: 8px !important;
+  }
+
+  .player-album-art.playing {
+    animation: none !important;
+  }
+
+  .stagger-children > * {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
