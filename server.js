@@ -25,6 +25,55 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
+  // Config endpoint to check if server has API Key
+  if (req.url === '/api/config') {
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    return res.end(JSON.stringify({
+      hasGroqKey: !!process.env.GROQ_API_KEY
+    }));
+  }
+
+  // Groq API Proxy
+  if (req.url.startsWith('/api/groq')) {
+    const groqPath = req.url.replace('/api/groq', '');
+    let authHeader = req.headers.authorization;
+    
+    // If no header from client, or it's empty, try using server environment variable
+    if ((!authHeader || authHeader === 'Bearer' || authHeader === 'Bearer null' || authHeader === 'Bearer undefined') && process.env.GROQ_API_KEY) {
+      authHeader = `Bearer ${process.env.GROQ_API_KEY}`;
+    }
+
+    const options = {
+      hostname: 'api.groq.com',
+      path: groqPath,
+      method: req.method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader || '',
+        'User-Agent': 'Mozilla/5.0'
+      }
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+      const headers = { ...proxyRes.headers };
+      headers['access-control-allow-origin'] = '*';
+      res.writeHead(proxyRes.statusCode, headers);
+      proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (e) => {
+      console.error("Groq Proxy Error:", e);
+      res.writeHead(500);
+      res.end('Groq Proxy Error');
+    });
+
+    req.pipe(proxyReq);
+    return;
+  }
+
   // API Proxy
   if (req.url.startsWith('/api/')) {
     const saavnPath = req.url.replace('/api', '');

@@ -6,7 +6,7 @@ const AIService = {
    * @returns {Promise<Object>} JSON containing intent details
    */
   async parseVoiceIntent(transcript, apiKey) {
-    if (!apiKey) throw new Error("Groq API Key is missing.");
+    if (!apiKey && !window.hasServerGroqKey) throw new Error("Groq API Key is missing.");
     
     const prompt = `
 You are an intelligent music assistant inside a web music player app.
@@ -36,7 +36,7 @@ Examples:
    * @returns {Promise<Object>} JSON containing an array of song queries
    */
   async generatePlaylistFromPrompt(prompt, apiKey) {
-    if (!apiKey) throw new Error("Groq API Key is missing.");
+    if (!apiKey && !window.hasServerGroqKey) throw new Error("Groq API Key is missing.");
 
     const sysPrompt = `
 You are an expert music curator. 
@@ -59,15 +59,19 @@ Format:
   },
 
   async _callGroq(prompt, apiKey) {
-    const url = `https://api.groq.com/openai/v1/chat/completions`;
+    const url = `/api/groq/openai/v1/chat/completions`;
     
     try {
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
+        headers: headers,
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [{ role: "user", content: prompt }],

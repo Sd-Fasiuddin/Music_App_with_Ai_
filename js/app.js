@@ -776,8 +776,9 @@
         recognition.onresult = async (event) => {
           const transcript = event.results[0][0].transcript;
           const apiKey = (localStorage.getItem('groq_api_key') || '').trim();
+          const hasApiKey = apiKey || window.hasServerGroqKey;
           
-          if (!apiKey || !window.AIService) {
+          if (!hasApiKey || !window.AIService) {
             searchInput.value = transcript;
             searchInput.dispatchEvent(new Event('input'));
             voiceBtn.classList.remove('listening');
@@ -1064,6 +1065,11 @@
       settingsBtn.addEventListener('click', (e) => {
         e.preventDefault();
         apiKeyInput.value = localStorage.getItem('groq_api_key') || '';
+        if (window.hasServerGroqKey) {
+          apiKeyInput.placeholder = "Configured via Server Environment Variable";
+        } else {
+          apiKeyInput.placeholder = "Paste your API key here...";
+        }
         settingsModal.classList.remove('hidden');
         document.getElementById('header-dropdown').style.display = 'none';
       });
@@ -1128,6 +1134,7 @@
       const submitAiPlaylist = async () => {
         const prompt = aiInput.value.trim();
         const apiKey = getGroqApiKey();
+        const hasApiKey = apiKey || window.hasServerGroqKey;
 
         if (!prompt) {
           setAiStatus('Describe a vibe, genre, mood, or theme first.', 'error');
@@ -1135,7 +1142,7 @@
           return;
         }
 
-        if (!apiKey) {
+        if (!hasApiKey) {
           setAiStatus('Add your Groq API key in Settings before generating.', 'error');
           if (window.UI) window.UI.showToast('Add your Groq API key in Settings first.');
           return;
@@ -1268,6 +1275,14 @@
   const App = {
     init() {
       console.log('[App] Initialising BeatFlow...');
+
+      // Fetch server configuration
+      fetch('/api/config')
+        .then(res => res.json())
+        .then(config => {
+          window.hasServerGroqKey = !!config.hasGroqKey;
+        })
+        .catch(err => console.warn('Could not fetch server configuration:', err));
 
       // 1. Init modules
       Player.init();
