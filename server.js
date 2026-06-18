@@ -18,7 +18,8 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -56,6 +57,10 @@ const server = http.createServer((req, res) => {
         'User-Agent': 'Mozilla/5.0'
       }
     };
+
+    if (req.headers['content-length']) {
+      options.headers['Content-Length'] = req.headers['content-length'];
+    }
 
     const proxyReq = https.request(options, (proxyRes) => {
       const headers = { ...proxyRes.headers };

@@ -1690,6 +1690,7 @@
   justify-content: flex-end;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .ai-playlist-status {
@@ -1698,6 +1699,9 @@
   line-height: 1.4;
   margin-right: auto;
   min-height: 20px;
+  flex: 1 1 auto;
+  min-width: 200px;
+  padding-right: 10px;
 }
 
 #ai-playlist-submit:disabled,

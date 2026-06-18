@@ -20,6 +20,26 @@
     }
   };
 
+  // ── Device Detection & View Transfer ─────────────────────────
+  const updateViewMode = () => {
+    const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        document.body.classList.add('mobile-view-active');
+        document.body.classList.remove('desktop-view-active');
+    } else {
+        document.body.classList.add('desktop-view-active');
+        document.body.classList.remove('mobile-view-active');
+    }
+  };
+
+  // Initialize view mode
+  window.addEventListener('resize', () => {
+    clearTimeout(window.resizeTimer);
+    window.resizeTimer = setTimeout(updateViewMode, 100);
+  });
+  updateViewMode();
+  document.addEventListener('DOMContentLoaded', updateViewMode);
+
   // ── Router ──────────────────────────────────────────────────
   const parseHash = () => {
     const hash = window.location.hash.replace('#', '') || 'home';
@@ -776,12 +796,10 @@
         recognition.onresult = async (event) => {
           const transcript = event.results[0][0].transcript;
           const apiKey = (localStorage.getItem('groq_api_key') || '').trim();
-          const hasApiKey = apiKey || window.hasServerGroqKey;
-          
-          if (!hasApiKey || !window.AIService) {
-            searchInput.value = transcript;
-            searchInput.dispatchEvent(new Event('input'));
-            voiceBtn.classList.remove('listening');
+
+          if (!window.AIService) {
+            window.UI.showToast('AI service is not available.');
+            return;
           } else {
             searchInput.placeholder = "AI is thinking...";
             try {
@@ -1134,17 +1152,10 @@
       const submitAiPlaylist = async () => {
         const prompt = aiInput.value.trim();
         const apiKey = getGroqApiKey();
-        const hasApiKey = apiKey || window.hasServerGroqKey;
 
         if (!prompt) {
           setAiStatus('Describe a vibe, genre, mood, or theme first.', 'error');
           aiInput.focus();
-          return;
-        }
-
-        if (!hasApiKey) {
-          setAiStatus('Add your Groq API key in Settings before generating.', 'error');
-          if (window.UI) window.UI.showToast('Add your Groq API key in Settings first.');
           return;
         }
 

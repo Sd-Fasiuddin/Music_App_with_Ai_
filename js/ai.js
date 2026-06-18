@@ -6,7 +6,6 @@ const AIService = {
    * @returns {Promise<Object>} JSON containing intent details
    */
   async parseVoiceIntent(transcript, apiKey) {
-    if (!apiKey && !window.hasServerGroqKey) throw new Error("Groq API Key is missing.");
     
     const prompt = `
 You are an intelligent music assistant inside a web music player app.
@@ -36,7 +35,6 @@ Examples:
    * @returns {Promise<Object>} JSON containing an array of song queries
    */
   async generatePlaylistFromPrompt(prompt, apiKey) {
-    if (!apiKey && !window.hasServerGroqKey) throw new Error("Groq API Key is missing.");
 
     const sysPrompt = `
 You are an expert music curator. 
@@ -83,7 +81,14 @@ Format:
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Groq API Error:", errorText);
-        throw new Error("Failed to get response from AI. Please check your API key.");
+        let detail = "Please check your API key.";
+        try {
+          const errObj = JSON.parse(errorText);
+          if (errObj.error && errObj.error.message) {
+            detail = errObj.error.message;
+          }
+        } catch(e) {}
+        throw new Error("AI Error: " + detail);
       }
 
       const data = await response.json();

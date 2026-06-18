@@ -1229,3 +1229,49 @@
   }
 }
 
+/* ── Mobile View Overrides (JS detected) ────────────────────────── */
+body.mobile-view-active .app {
+  padding: 0;
+  gap: 0;
+}
+
+body.mobile-view-active .main-content {
+  border-radius: 0;
+  border: none;
+}
+
+body.mobile-view-active .content-header {
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  height: auto;
+  gap: var(--space-2);
+}
+
+body.mobile-view-active .search-container {
+  order: 3;
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+body.mobile-view-active .content-header-left,
+body.mobile-view-active .content-header-right {
+  flex: none;
+}
+
+body.mobile-view-active .content-header-right {
+  margin-left: auto;
+}
+
+body.mobile-view-active .search-input {
+  height: 40px;
+  font-size: var(--text-sm);
+}
+
+body.mobile-view-active .section-title {
+  margin-top: var(--space-4);
+}
+
+body.mobile-view-active .cards-row-inner {
+  padding-bottom: var(--space-4);
+}
+
