@@ -26,15 +26,13 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
-  // Config endpoint to check if server has API Key
+  // Config endpoint for client
   if (req.url === '/api/config') {
-    res.writeHead(200, { 
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    });
-    return res.end(JSON.stringify({
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
       hasGroqKey: !!process.env.GROQ_API_KEY
     }));
+    return;
   }
 
   // Groq API Proxy
