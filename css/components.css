@@ -1918,3 +1918,16 @@
     border-radius: 12px !important;
   }
 }
+
+/* -- Additional Mobile Tweaks -------------------------- */
+@media (max-width: 768px) {
+  body.mobile-view-active .content-body {
+    padding-bottom: 160px !important;
+  }
+  body.mobile-view-active .player-track-artist {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+  body.mobile-view-active .player-track-title {
+    color: #ffffff !important;
+  }
+}
