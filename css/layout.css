@@ -1275,3 +1275,93 @@ body.mobile-view-active .cards-row-inner {
   padding-bottom: var(--space-4);
 }
 
+/* ── Specific Mobile Component Fixes ────────────────────────── */
+body.mobile-view-active .hero-banner {
+  flex-direction: column;
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  align-items: center;
+  text-align: center;
+  height: auto;
+  border-radius: 0;
+}
+
+body.mobile-view-active .hero-cover,
+body.mobile-view-active .hero-artist-img {
+  width: 180px;
+  height: 180px;
+  margin-right: 0;
+  margin-bottom: var(--space-4);
+}
+
+body.mobile-view-active .hero-info {
+  align-items: center;
+}
+
+body.mobile-view-active .hero-title {
+  font-size: 28px;
+  line-height: 1.2;
+  word-break: break-word;
+  white-space: normal;
+}
+
+body.mobile-view-active .hero-actions {
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+body.mobile-view-active .track-album {
+  display: none !important;
+}
+
+body.mobile-view-active .track-number {
+  min-width: 24px;
+  width: 24px;
+  margin-right: 8px;
+}
+
+body.mobile-view-active .track-row {
+  padding: 8px var(--space-2);
+  gap: var(--space-2);
+}
+
+body.mobile-view-active .track-title {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.mobile-view-active .cards-row {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--space-4);
+}
+
+body.mobile-view-active .card {
+  flex: 0 0 auto;
+  width: 140px;
+  scroll-snap-align: start;
+}
+
+body.mobile-view-active .card-img-wrap {
+  height: 140px;
+}
+
+body.mobile-view-active .search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  border-radius: 0 0 12px 12px;
+}
+
+body.mobile-view-active .player-bar {
+  bottom: calc(var(--mobile-nav-height) + 12px);
+  margin: 0 12px;
+  width: calc(100% - 24px);
+  border-radius: 12px;
+}
