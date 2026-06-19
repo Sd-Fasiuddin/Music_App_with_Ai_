@@ -1911,7 +1911,7 @@
     z-index: 1000 !important;
     border-radius: 0 0 12px 12px !important;
   }
-  body.mobile-view-active .player-bar {
+  body.mobile-view-active .player-bar { position: fixed !important; z-index: 1000 !important; 
     bottom: calc(var(--mobile-nav-height) + 12px) !important;
     margin: 0 12px !important;
     width: calc(100% - 24px) !important;
