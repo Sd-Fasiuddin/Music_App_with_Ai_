@@ -230,17 +230,27 @@
       });
 
       // iOS FIX: When app returns to foreground, force re-sync the audio state.
-      // iOS can silently drop or corrupt the audio buffer while in background.
+      // iOS silently deallocates decoded audio frames in background.
+      // We track whether audio was supposed to be playing when we went to background.
+      let wasPlayingBeforeHidden = false;
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && state.currentTrack) {
-          // If iOS thinks audio is playing but it's actually silent, fix it.
+        const isIOS_vis = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        if (!isIOS_vis || !state.currentTrack) return;
+
+        if (document.visibilityState === 'hidden') {
+          // Remember if audio was playing when we go to background
+          wasPlayingBeforeHidden = !state.audio.paused;
+        } else if (document.visibilityState === 'visible' && wasPlayingBeforeHidden) {
+          // Came back to foreground and audio was supposed to be playing.
+          // If iOS silently killed it, reload.
           setTimeout(() => {
-            if (!state.audio.paused && state.audio.readyState < 3) {
-              // Audio is "playing" but has no data — iOS dropped the buffer
-              console.warn('[Player] iOS buffer dropped detected, reloading...');
+            if (state.audio.paused && wasPlayingBeforeHidden) {
+              // iOS paused it behind our back — reload and resume
+              console.warn('[Player] iOS silently paused audio in background, reloading...');
               Player._reloadAndResume();
             }
-          }, 500);
+          }, 300);
         }
       });
 
@@ -282,31 +292,32 @@
     /* ---- Resume (iOS-bulletproof) ---- */
     resume() {
       if (!state.currentTrack) return;
-      ensureAudioContext();
-      if (state.audioContext && state.audioContext.state === 'suspended') {
-        state.audioContext.resume().catch(() => {});
-      }
 
-      // iOS drops the audio buffer when backgrounded. Detect this and reload.
-      // readyState 0 = HAVE_NOTHING (buffer was cleared by iOS)
-      // readyState 1 = HAVE_METADATA only (not enough to play)
-      const bufferDropped = state.audio.readyState < 2 ||
-        state.audio.networkState === HTMLMediaElement.NETWORK_EMPTY ||
-        !state.audio.src || state.audio.src === window.location.href;
+      // Detect iOS/iPadOS — including iPad in desktop mode
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+        ('ontouchend' in document && /Mac/.test(navigator.userAgent));
 
-      if (bufferDropped) {
-        console.warn('[Player] iOS audio buffer dropped — reloading from', state.audio.currentTime);
+      if (isIOS) {
+        // iOS ALWAYS needs a full source reload to guarantee audible sound.
+        // iOS Safari silently deallocates decoded audio frames in background.
+        // readyState and networkState LIE — they still report "ready" even when
+        // the audio buffer is empty. The ONLY reliable fix is to always reload.
         Player._reloadAndResume();
         return;
       }
 
-      // Normal resume — audio buffer is still intact
+      // Desktop / Android: normal resume
+      ensureAudioContext();
+      if (state.audioContext && state.audioContext.state === 'suspended') {
+        state.audioContext.resume().catch(() => {});
+      }
       state.audio.play().then(() => {
         setMediaSessionState('playing');
       }).catch((err) => {
-        console.warn('[Player] Resume failed, trying reload:', err.name, err.message);
-        // If normal play fails (e.g. iOS NotAllowedError or NotSupportedError), force reload
-        Player._reloadAndResume();
+        console.warn('[Player] Resume failed:', err);
+        setMediaSessionState('paused');
+        emit('player:pause');
       });
     },
 
@@ -314,18 +325,52 @@
     _reloadAndResume() {
       if (!state.currentTrack) return;
       const savedTime = state.audio.currentTime || 0;
+
+      // Cancel any previous pending reload to prevent duplicate handlers
+      if (state._pendingCanPlay) {
+        state.audio.removeEventListener('canplay', state._pendingCanPlay);
+        state._pendingCanPlay = null;
+      }
+      if (state._reloadTimeout) {
+        clearTimeout(state._reloadTimeout);
+        state._reloadTimeout = null;
+      }
+
       state.audio.src = state.currentTrack.audioUrl;
       state.audio.load();
-      const onCanPlay = () => {
-        state.audio.removeEventListener('canplay', onCanPlay);
-        state.audio.currentTime = savedTime;
+
+      state._pendingCanPlay = () => {
+        state.audio.removeEventListener('canplay', state._pendingCanPlay);
+        state._pendingCanPlay = null;
+        if (state._reloadTimeout) {
+          clearTimeout(state._reloadTimeout);
+          state._reloadTimeout = null;
+        }
+        // Seek back to where the user was
+        if (savedTime > 0 && state.audio.duration && savedTime < state.audio.duration) {
+          state.audio.currentTime = savedTime;
+        }
         state.audio.play().catch((err) => {
           console.error('[Player] Reload+play failed:', err);
           setMediaSessionState('paused');
           emit('player:pause');
         });
       };
-      state.audio.addEventListener('canplay', onCanPlay);
+      state.audio.addEventListener('canplay', state._pendingCanPlay);
+
+      // Timeout fallback: if canplay never fires (e.g. network issue), try playing anyway
+      state._reloadTimeout = setTimeout(() => {
+        if (state._pendingCanPlay) {
+          state.audio.removeEventListener('canplay', state._pendingCanPlay);
+          state._pendingCanPlay = null;
+          state._reloadTimeout = null;
+          // Try playing even without canplay — sometimes iOS fires 'playing' directly
+          state.audio.play().catch(() => {
+            setMediaSessionState('paused');
+            emit('player:pause');
+          });
+        }
+      }, 4000);
     },
 
     /* ---- Toggle ---- */
