@@ -1,6 +1,7 @@
 /* ============================================================
    Pulse Music — player.js
    Audio Engine & Playback Controller
+   iOS-Stable Version: audio.paused is the single source of truth
    ============================================================ */
 (function () {
   'use strict';
@@ -15,7 +16,6 @@
     currentTrack: null,
     queue: [],
     queueIndex: -1,
-    isPlaying: false,
     isShuffle: false,
     repeatMode: 'off', // 'off' | 'one' | 'all'
     volume: 0.7,
@@ -26,6 +26,8 @@
     analyser: null,
     sourceNode: null,
     rafId: null
+    // NOTE: NO isPlaying in state. We use audio.paused as the single source of truth.
+    // This is the #1 cause of iOS desync: a stale boolean that diverges from reality.
   };
 
   // ── Animation loop for time updates ─────────────────────────
@@ -63,15 +65,18 @@
     });
   };
 
-  // ── Setup MediaSession handlers ─────────────────────────────
-  const setMediaSessionState = (stateStr) => {
+  // ── Set MediaSession playback state ────────────────────────
+  const setMediaSessionState = (playbackState) => {
     if ('mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = stateStr;
+      navigator.mediaSession.playbackState = playbackState;
     }
   };
 
+  // ── Setup MediaSession handlers ─────────────────────────────
   const setupMediaSession = () => {
     if (!('mediaSession' in navigator)) return;
+    // These are the handlers iOS/Android lock screen and control center calls.
+    // They MUST call the actual play/pause on the audio element directly.
     navigator.mediaSession.setActionHandler('play', () => Player.resume());
     navigator.mediaSession.setActionHandler('pause', () => Player.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => Player.previous());
@@ -81,47 +86,54 @@
         state.audio.currentTime = details.seekTime;
       }
     });
+    navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+      const skip = details.seekOffset || 10;
+      state.audio.currentTime = Math.max(0, state.audio.currentTime - skip);
+    });
+    navigator.mediaSession.setActionHandler('seekforward', (details) => {
+      const skip = details.seekOffset || 10;
+      state.audio.currentTime = Math.min(state.audio.duration || 0, state.audio.currentTime + skip);
+    });
   };
 
-  // ── Ensure AudioContext + AnalyserNode ──────────────────────
+  // ── Ensure AudioContext + AnalyserNode (desktop only) ───────
   const ensureAudioContext = () => {
     if (state.audioContext) return;
-    
-    // Web Audio API suspends when app goes to background on mobile (iOS/Android).
-    // Bypass audio routing on mobile so background playback works flawlessly.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isMobile = window.innerWidth <= 768 || /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIOS;
-    if (isMobile) return;
+
+    // CRITICAL iOS FIX: NEVER create a Web Audio API context on iOS/iPadOS.
+    // The AudioContext is suspended by the OS when the app goes to background,
+    // which cuts off audio completely. We use the plain HTMLAudioElement instead,
+    // which iOS handles natively and allows background playback.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+      (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isIOS || isAndroid) return;
 
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       state.audioContext = new AudioCtx();
-      
-      // Audio Enhancement: Bass Filter for clear and cut bass
+
       state.bassFilter = state.audioContext.createBiquadFilter();
       state.bassFilter.type = 'lowshelf';
-      state.bassFilter.frequency.value = 100; // Target deep bass frequencies
-      state.bassFilter.gain.value = 6; // Reasonable boost to avoid heavy distortion
+      state.bassFilter.frequency.value = 100;
+      state.bassFilter.gain.value = 6;
 
-      // Audio Enhancement: Dynamics Compressor for audible stability and noise reduction
       state.compressor = state.audioContext.createDynamicsCompressor();
-      state.compressor.threshold.value = -12; // Start compressing at -12dB
+      state.compressor.threshold.value = -12;
       state.compressor.knee.value = 10;
-      state.compressor.ratio.value = 4; // Moderate compression ratio
-      state.compressor.attack.value = 0.005; // Fast attack to catch peaks
-      state.compressor.release.value = 0.1; // Quick release
+      state.compressor.ratio.value = 4;
+      state.compressor.attack.value = 0.005;
+      state.compressor.release.value = 0.1;
 
-      // Optional Gain Node to restore volume gracefully without clipping
       state.gainNode = state.audioContext.createGain();
-      state.gainNode.gain.value = 1.1; 
+      state.gainNode.gain.value = 1.1;
 
       state.analyser = state.audioContext.createAnalyser();
       state.analyser.fftSize = 256;
       state.analyser.smoothingTimeConstant = 0.8;
-      
+
       state.sourceNode = state.audioContext.createMediaElementSource(state.audio);
-      
-      // Connect graph: source -> bassFilter -> compressor -> gainNode -> analyser -> destination
       state.sourceNode.connect(state.bassFilter);
       state.bassFilter.connect(state.compressor);
       state.compressor.connect(state.gainNode);
@@ -139,7 +151,9 @@
     get currentTrack() { return state.currentTrack; },
     get queue() { return state.queue; },
     get queueIndex() { return state.queueIndex; },
-    get isPlaying() { return state.isPlaying; },
+    // isPlaying reads directly from the audio element — NEVER from a cached boolean.
+    // This is the permanent fix for iOS lock screen desync.
+    get isPlaying() { return state.audio ? !state.audio.paused : false; },
     get isShuffle() { return state.isShuffle; },
     get repeatMode() { return state.repeatMode; },
     get volume() { return state.volume; },
@@ -152,20 +166,36 @@
       state.audio = new Audio();
       state.audio.crossOrigin = 'anonymous';
       state.audio.preload = 'auto';
+      // Required for iOS to not force fullscreen video player
       state.audio.playsInline = true;
       state.audio.setAttribute('webkit-playsinline', 'true');
       state.audio.style.display = 'none';
-      // Critical for iOS background playback: append to DOM
+      // Required for iOS: audio element MUST be in the DOM to allow background playback
       document.body.appendChild(state.audio);
 
       // Restore saved volume
       const savedVol = localStorage.getItem('pulse_volume');
-      if (savedVol !== null) {
-        state.volume = parseFloat(savedVol);
-      }
+      if (savedVol !== null) state.volume = parseFloat(savedVol);
       state.audio.volume = state.volume;
 
-      // Audio ended handler
+      // --- Native audio element events are the ONLY source of truth ---
+      // This ensures iOS lock screen, control center, and app switching
+      // ALL stay perfectly in sync with the real audio state.
+
+      state.audio.addEventListener('playing', () => {
+        // 'playing' fires when audio actually starts making sound (after buffering)
+        setMediaSessionState('playing');
+        emit('player:play', { track: state.currentTrack });
+        console.log('[Player] playing');
+      });
+
+      state.audio.addEventListener('pause', () => {
+        // 'pause' fires whether WE pause it or iOS pauses it in background
+        setMediaSessionState('paused');
+        emit('player:pause');
+        console.log('[Player] pause');
+      });
+
       state.audio.addEventListener('ended', () => {
         emit('player:ended');
         if (state.repeatMode === 'one') {
@@ -176,39 +206,20 @@
         }
       });
 
-      // Keep OS lock screen progress bar synced in the background
+      // Sync position to OS lock screen progress bar every tick
       state.audio.addEventListener('timeupdate', () => {
-        if ('setPositionState' in navigator.mediaSession && state.audio.duration && !isNaN(state.audio.duration)) {
+        if ('setPositionState' in navigator.mediaSession &&
+            state.audio.duration && !isNaN(state.audio.duration)) {
           try {
             navigator.mediaSession.setPositionState({
               duration: state.audio.duration,
               playbackRate: state.audio.playbackRate || 1,
-              position: state.audio.currentTime
+              position: Math.min(state.audio.currentTime, state.audio.duration)
             });
           } catch (e) {}
         }
       });
 
-      // Crucial for iOS: Sync state when OS natively pauses/plays background audio
-      state.audio.addEventListener('play', () => {
-        state.isPlaying = true;
-        setMediaSessionState('playing');
-        emit('player:play', { track: state.currentTrack });
-      });
-
-      state.audio.addEventListener('pause', () => {
-        state.isPlaying = false;
-        setMediaSessionState('paused');
-        emit('player:pause');
-      });
-
-      state.audio.addEventListener('playing', () => {
-        state.isPlaying = true;
-        setMediaSessionState('playing');
-        emit('player:play', { track: state.currentTrack });
-      });
-
-      // Error handler
       state.audio.addEventListener('error', (e) => {
         console.error('[Player] Audio error:', e);
         emit('player:error', { error: e });
@@ -216,7 +227,7 @@
 
       setupMediaSession();
       tick(); // start animation frame loop
-      console.log('[Player] Initialised');
+      console.log('[Player] Initialised (iOS-stable mode)');
     },
 
     /* ---- Play a specific track ---- */
@@ -224,62 +235,50 @@
       if (!track) return;
       state.currentTrack = track;
       if (queueIndex >= 0) state.queueIndex = queueIndex;
-      
-      // Ensure AudioContext is initialized/unlocked synchronously within the user gesture
+
       ensureAudioContext();
       if (state.audioContext && state.audioContext.state === 'suspended') {
         state.audioContext.resume().catch(err => console.warn(err));
       }
-      
+
       state.audio.src = track.audioUrl;
       state.audio.load();
       emit('player:trackchange', { track });
+      updateMediaSession(track);
+      setMediaSessionState('playing');
 
-      const playPromise = state.audio.play();
-      if (playPromise) {
-        playPromise.then(() => {
-          state.isPlaying = true;
-          emit('player:play', { track });
-          updateMediaSession(track);
-          setMediaSessionState('playing');
-        }).catch((err) => {
-          console.warn('[Player] Autoplay blocked:', err);
-          state.isPlaying = false;
-          emit('player:pause');
-          updateMediaSession(track);
-          setMediaSessionState('paused');
-        });
-      }
+      state.audio.play().catch((err) => {
+        console.warn('[Player] Autoplay blocked:', err);
+        setMediaSessionState('paused');
+        emit('player:pause');
+      });
     },
 
-    /* ---- Pause / Resume / Toggle ---- */
+    /* ---- Pause ---- */
     pause() {
       state.audio.pause();
-      state.isPlaying = false;
-      emit('player:pause');
-      setMediaSessionState('paused');
+      // State update happens via the 'pause' event listener above
     },
 
+    /* ---- Resume ---- */
     resume() {
       if (!state.currentTrack) return;
       ensureAudioContext();
       if (state.audioContext && state.audioContext.state === 'suspended') {
         state.audioContext.resume().catch(() => {});
       }
-      state.audio.play().then(() => {
-        state.isPlaying = true;
-        emit('player:play', { track: state.currentTrack });
-        setMediaSessionState('playing');
-      }).catch((err) => {
+      state.audio.play().catch((err) => {
         console.warn('[Player] Resume failed:', err);
-        state.isPlaying = false;
-        emit('player:pause');
         setMediaSessionState('paused');
+        emit('player:pause');
       });
+      // Success state update happens via the 'playing' event listener above
     },
 
+    /* ---- Toggle ---- */
     togglePlay() {
-      if (state.isPlaying) {
+      // Read directly from audio.paused, never from a cached boolean
+      if (state.audio && !state.audio.paused) {
         Player.pause();
       } else if (state.currentTrack) {
         Player.resume();
@@ -323,7 +322,7 @@
       if (!state.queue.length) return;
       if (state.queue.length === 1) {
         state.audio.currentTime = 0;
-        if (state.isPlaying) state.audio.play().catch(() => {});
+        if (!state.audio.paused) state.audio.play().catch(() => {});
         return;
       }
 
@@ -349,24 +348,19 @@
     previous() {
       if (!state.queue.length) return;
 
-      // If more than 3s in, restart current track
       if (state.audio.currentTime > 3) {
         state.audio.currentTime = 0;
         return;
       }
       if (state.queue.length === 1) {
         state.audio.currentTime = 0;
-        if (state.isPlaying) state.audio.play().catch(() => {});
+        if (!state.audio.paused) state.audio.play().catch(() => {});
         return;
       }
 
       state.queueIndex--;
       if (state.queueIndex < 0) {
-        if (state.repeatMode === 'all') {
-          state.queueIndex = state.queue.length - 1;
-        } else {
-          state.queueIndex = 0;
-        }
+        state.queueIndex = state.repeatMode === 'all' ? state.queue.length - 1 : 0;
       }
       Player.play(state.queue[state.queueIndex]);
     },
