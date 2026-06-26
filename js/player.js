@@ -64,6 +64,12 @@
   };
 
   // ── Setup MediaSession handlers ─────────────────────────────
+  const setMediaSessionState = (stateStr) => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = stateStr;
+    }
+  };
+
   const setupMediaSession = () => {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.setActionHandler('play', () => Player.resume());
@@ -145,6 +151,11 @@
       state.audio = new Audio();
       state.audio.crossOrigin = 'anonymous';
       state.audio.preload = 'auto';
+      state.audio.playsInline = true;
+      state.audio.setAttribute('webkit-playsinline', 'true');
+      state.audio.style.display = 'none';
+      // Critical for iOS background playback: append to DOM
+      document.body.appendChild(state.audio);
 
       // Restore saved volume
       const savedVol = localStorage.getItem('pulse_volume');
@@ -175,18 +186,18 @@
       console.log('[Player] Initialised');
     },
 
-    /* ---- Play a track ---- */
-    play(track) {
+    /* ---- Play a specific track ---- */
+    play(track, queueIndex = -1) {
       if (!track) return;
       state.currentTrack = track;
-      state.isPlaying = false;
-
+      if (queueIndex >= 0) state.queueIndex = queueIndex;
+      
       // Ensure AudioContext is initialized/unlocked synchronously within the user gesture
       ensureAudioContext();
       if (state.audioContext && state.audioContext.state === 'suspended') {
         state.audioContext.resume().catch(err => console.warn(err));
       }
-
+      
       state.audio.src = track.audioUrl;
       state.audio.load();
       emit('player:trackchange', { track });
@@ -197,11 +208,13 @@
           state.isPlaying = true;
           emit('player:play', { track });
           updateMediaSession(track);
+          setMediaSessionState('playing');
         }).catch((err) => {
           console.warn('[Player] Autoplay blocked:', err);
           state.isPlaying = false;
           emit('player:pause');
           updateMediaSession(track);
+          setMediaSessionState('paused');
         });
       }
     },
@@ -211,6 +224,7 @@
       state.audio.pause();
       state.isPlaying = false;
       emit('player:pause');
+      setMediaSessionState('paused');
     },
 
     resume() {
@@ -222,6 +236,7 @@
       state.audio.play().then(() => {
         state.isPlaying = true;
         emit('player:play', { track: state.currentTrack });
+        setMediaSessionState('playing');
       }).catch(() => {});
     },
 
