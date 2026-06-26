@@ -189,6 +189,25 @@
         }
       });
 
+      // Crucial for iOS: Sync state when OS natively pauses/plays background audio
+      state.audio.addEventListener('play', () => {
+        state.isPlaying = true;
+        setMediaSessionState('playing');
+        emit('player:play', { track: state.currentTrack });
+      });
+
+      state.audio.addEventListener('pause', () => {
+        state.isPlaying = false;
+        setMediaSessionState('paused');
+        emit('player:pause');
+      });
+
+      state.audio.addEventListener('playing', () => {
+        state.isPlaying = true;
+        setMediaSessionState('playing');
+        emit('player:play', { track: state.currentTrack });
+      });
+
       // Error handler
       state.audio.addEventListener('error', (e) => {
         console.error('[Player] Audio error:', e);
