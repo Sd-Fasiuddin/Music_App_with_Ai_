@@ -89,7 +89,8 @@
     
     // Web Audio API suspends when app goes to background on mobile (iOS/Android).
     // Bypass audio routing on mobile so background playback works flawlessly.
-    const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isMobile = window.innerWidth <= 768 || /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || isIOS;
     if (isMobile) return;
 
     try {
@@ -175,6 +176,19 @@
         }
       });
 
+      // Keep OS lock screen progress bar synced in the background
+      state.audio.addEventListener('timeupdate', () => {
+        if ('setPositionState' in navigator.mediaSession && state.audio.duration && !isNaN(state.audio.duration)) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: state.audio.duration,
+              playbackRate: state.audio.playbackRate || 1,
+              position: state.audio.currentTime
+            });
+          } catch (e) {}
+        }
+      });
+
       // Error handler
       state.audio.addEventListener('error', (e) => {
         console.error('[Player] Audio error:', e);
@@ -231,13 +245,18 @@
       if (!state.currentTrack) return;
       ensureAudioContext();
       if (state.audioContext && state.audioContext.state === 'suspended') {
-        state.audioContext.resume();
+        state.audioContext.resume().catch(() => {});
       }
       state.audio.play().then(() => {
         state.isPlaying = true;
         emit('player:play', { track: state.currentTrack });
         setMediaSessionState('playing');
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('[Player] Resume failed:', err);
+        state.isPlaying = false;
+        emit('player:pause');
+        setMediaSessionState('paused');
+      });
     },
 
     togglePlay() {
