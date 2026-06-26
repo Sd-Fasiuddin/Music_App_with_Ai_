@@ -80,6 +80,12 @@
   // ── Ensure AudioContext + AnalyserNode ──────────────────────
   const ensureAudioContext = () => {
     if (state.audioContext) return;
+    
+    // Web Audio API suspends when app goes to background on mobile (iOS/Android).
+    // Bypass audio routing on mobile so background playback works flawlessly.
+    const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) return;
+
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       state.audioContext = new AudioCtx();
