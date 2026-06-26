@@ -164,7 +164,11 @@
     /* ---- Initialise ---- */
     init() {
       state.audio = new Audio();
-      state.audio.crossOrigin = 'anonymous';
+      // Do NOT set crossOrigin on iOS — it prevents iOS from caching/resuming audio
+      const isIOS_init = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+        ('ontouchend' in document && /Mac/.test(navigator.userAgent));
+      if (!isIOS_init) state.audio.crossOrigin = 'anonymous';
       state.audio.preload = 'auto';
       // Required for iOS to not force fullscreen video player
       state.audio.playsInline = true;
@@ -225,6 +229,21 @@
         emit('player:error', { error: e });
       });
 
+      // iOS FIX: When app returns to foreground, force re-sync the audio state.
+      // iOS can silently drop or corrupt the audio buffer while in background.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && state.currentTrack) {
+          // If iOS thinks audio is playing but it's actually silent, fix it.
+          setTimeout(() => {
+            if (!state.audio.paused && state.audio.readyState < 3) {
+              // Audio is "playing" but has no data — iOS dropped the buffer
+              console.warn('[Player] iOS buffer dropped detected, reloading...');
+              Player._reloadAndResume();
+            }
+          }, 500);
+        }
+      });
+
       setupMediaSession();
       tick(); // start animation frame loop
       console.log('[Player] Initialised (iOS-stable mode)');
@@ -260,19 +279,53 @@
       // State update happens via the 'pause' event listener above
     },
 
-    /* ---- Resume ---- */
+    /* ---- Resume (iOS-bulletproof) ---- */
     resume() {
       if (!state.currentTrack) return;
       ensureAudioContext();
       if (state.audioContext && state.audioContext.state === 'suspended') {
         state.audioContext.resume().catch(() => {});
       }
-      state.audio.play().catch((err) => {
-        console.warn('[Player] Resume failed:', err);
-        setMediaSessionState('paused');
-        emit('player:pause');
+
+      // iOS drops the audio buffer when backgrounded. Detect this and reload.
+      // readyState 0 = HAVE_NOTHING (buffer was cleared by iOS)
+      // readyState 1 = HAVE_METADATA only (not enough to play)
+      const bufferDropped = state.audio.readyState < 2 ||
+        state.audio.networkState === HTMLMediaElement.NETWORK_EMPTY ||
+        !state.audio.src || state.audio.src === window.location.href;
+
+      if (bufferDropped) {
+        console.warn('[Player] iOS audio buffer dropped — reloading from', state.audio.currentTime);
+        Player._reloadAndResume();
+        return;
+      }
+
+      // Normal resume — audio buffer is still intact
+      state.audio.play().then(() => {
+        setMediaSessionState('playing');
+      }).catch((err) => {
+        console.warn('[Player] Resume failed, trying reload:', err.name, err.message);
+        // If normal play fails (e.g. iOS NotAllowedError or NotSupportedError), force reload
+        Player._reloadAndResume();
       });
-      // Success state update happens via the 'playing' event listener above
+    },
+
+    /* ---- Internal: Reload src and resume from saved position (iOS fix) ---- */
+    _reloadAndResume() {
+      if (!state.currentTrack) return;
+      const savedTime = state.audio.currentTime || 0;
+      state.audio.src = state.currentTrack.audioUrl;
+      state.audio.load();
+      const onCanPlay = () => {
+        state.audio.removeEventListener('canplay', onCanPlay);
+        state.audio.currentTime = savedTime;
+        state.audio.play().catch((err) => {
+          console.error('[Player] Reload+play failed:', err);
+          setMediaSessionState('paused');
+          emit('player:pause');
+        });
+      };
+      state.audio.addEventListener('canplay', onCanPlay);
     },
 
     /* ---- Toggle ---- */
